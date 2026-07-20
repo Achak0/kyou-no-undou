@@ -1,0 +1,860 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#f7f5f0">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<title>きょうの運動</title>
+<style>
+  :root{
+    --bg:#f7f5f0;
+    --card:#ffffff;
+    --ink:#3a3a3a;
+    --sub:#8a8578;
+    --accent:#69a297;
+    --accent-deep:#578e83;
+    --green:#7fae8e;
+    --line:#e8e4da;
+    --easy:#8fb8a8;
+    --mid:#e8b04b;
+    --hard:#d97b63;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Yu Gothic UI",Meiryo,sans-serif;
+    background:var(--bg);color:var(--ink);
+    min-height:100vh;
+  }
+  .app{max-width:480px;margin:0 auto;padding:16px 16px 90px;}
+
+  /* ---------- header ---------- */
+  header{padding:12px 4px 18px;}
+  header h1{font-size:22px;font-weight:700;letter-spacing:.05em;}
+  header p{font-size:12px;color:var(--sub);margin-top:4px;}
+
+  /* ---------- steps indicator ---------- */
+  .stepbar{display:flex;gap:6px;margin:0 4px 16px;}
+  .stepbar span{flex:1;height:4px;border-radius:2px;background:var(--line);transition:background .3s;}
+  .stepbar span.on{background:var(--accent);}
+
+  /* ---------- generic ---------- */
+  .screen{display:none;}
+  .screen.active{display:block;animation:fadein .25s ease;}
+  @keyframes fadein{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:none;}}
+  .q{font-size:17px;font-weight:700;margin:4px 4px 14px;}
+  .q small{display:block;font-size:12px;font-weight:400;color:var(--sub);margin-top:4px;}
+
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .grid1{display:grid;grid-template-columns:1fr;gap:10px;}
+
+  .opt{
+    background:var(--card);border:1.5px solid var(--line);border-radius:16px;
+    padding:18px 12px;text-align:center;font-size:16px;font-weight:600;
+    cursor:pointer;transition:transform .1s, border-color .15s;
+    user-select:none;
+  }
+  .opt:active{transform:scale(.97);}
+  .opt .emoji{display:block;font-size:26px;margin-bottom:6px;}
+  .opt .emoji svg{width:42px;height:42px;}
+  .opt .note{display:block;font-size:11px;font-weight:400;color:var(--sub);margin-top:4px;}
+  .opt.sel{border-color:var(--accent);background:#e9f1ef;}
+
+  .backbtn{
+    display:inline-block;margin:16px 4px 0;font-size:13px;color:var(--sub);
+    background:none;border:none;cursor:pointer;padding:8px;
+  }
+
+  /* ---------- menu screen ---------- */
+  .summary{
+    display:flex;gap:8px;flex-wrap:wrap;margin:0 4px 14px;
+  }
+  .chip{
+    font-size:12px;font-weight:600;padding:6px 12px;border-radius:99px;
+    background:var(--card);border:1px solid var(--line);color:var(--ink);
+  }
+  .chip.c-easy{background:#eef5f1;border-color:var(--easy);color:#4e7a67;}
+  .chip.c-mid{background:#fbf3e2;border-color:var(--mid);color:#9c7420;}
+  .chip.c-hard{background:#fbeae5;border-color:var(--hard);color:#b05a44;}
+  .chip svg{width:11px;height:11px;margin-right:2px;vertical-align:-1px;}
+
+  .roundinfo{
+    background:#f0ece3;border-radius:12px;padding:10px 14px;font-size:13px;
+    color:#6b6555;margin:0 0 14px;line-height:1.6;
+  }
+
+  .ex{
+    background:var(--card);border:1.5px solid var(--line);border-radius:16px;
+    margin-bottom:10px;overflow:hidden;
+  }
+  .ex-head{
+    display:flex;align-items:center;gap:10px;padding:14px;cursor:pointer;user-select:none;
+  }
+  .ex-num{
+    width:28px;height:28px;border-radius:50%;background:var(--accent);color:#fff;
+    display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;flex-shrink:0;
+  }
+  .ex-title{flex:1;}
+  .ex-title .name{font-size:15px;font-weight:700;line-height:1.4;}
+  .ex-title .meta{font-size:11.5px;color:var(--sub);margin-top:2px;}
+  .ex-arrow{color:var(--sub);font-size:12px;transition:transform .2s;}
+  .ex.open .ex-arrow{transform:rotate(90deg);}
+  .ex-body{display:none;padding:0 14px 14px;border-top:1px dashed var(--line);}
+  .ex.open .ex-body{display:block;}
+  .ex-body ol{margin:12px 0 0 4px;padding-left:18px;}
+  .ex-body li{font-size:13.5px;line-height:1.8;margin-bottom:4px;}
+  .ex-tip{
+    margin-top:10px;background:#f4f7f3;border-radius:10px;padding:10px 12px;
+    font-size:12.5px;color:#557262;line-height:1.7;
+  }
+  .ex-tip::before{content:"💡 ";}
+
+  .tagchip{
+    display:inline-block;font-size:10.5px;font-weight:600;padding:2px 8px;border-radius:99px;margin-right:6px;
+  }
+  .tag-stretch{background:#eef5f1;color:#4e7a67;}
+  .tag-strength{background:#fbeae5;color:#b05a44;}
+
+  .donebtn{
+    width:100%;margin-top:16px;padding:16px;border:none;border-radius:16px;
+    background:var(--accent);color:#fff;font-size:16px;font-weight:700;cursor:pointer;
+    font-family:inherit;
+  }
+  .donebtn:active{background:var(--accent-deep);}
+
+  /* ---------- done screen ---------- */
+  .donecard{
+    background:var(--card);border-radius:20px;padding:36px 20px;text-align:center;
+    border:1.5px solid var(--line);
+  }
+  .donecard .big{font-size:44px;}
+  .donecard h2{font-size:19px;margin:12px 0 6px;}
+  .donecard p{font-size:13px;color:var(--sub);line-height:1.7;}
+
+  /* ---------- history ---------- */
+  .stat{
+    display:flex;gap:10px;margin-bottom:14px;
+  }
+  .stat .box{
+    flex:1;background:var(--card);border:1.5px solid var(--line);border-radius:14px;
+    padding:14px;text-align:center;
+  }
+  .stat .num{font-size:24px;font-weight:700;color:var(--accent-deep);}
+  .stat .lbl{font-size:11px;color:var(--sub);margin-top:2px;}
+  .log{
+    background:var(--card);border:1.5px solid var(--line);border-radius:14px;
+    padding:12px 14px;margin-bottom:8px;display:flex;align-items:center;gap:10px;
+  }
+  .log .date{font-size:12px;color:var(--sub);width:74px;flex-shrink:0;}
+  .log .what{flex:1;font-size:14px;font-weight:600;}
+  .log .what small{display:block;font-size:11px;font-weight:400;color:var(--sub);margin-top:2px;}
+  .log .del{border:none;background:none;color:#c9c3b6;font-size:16px;cursor:pointer;padding:4px;}
+  .log .what svg{width:14px;height:14px;margin-right:3px;vertical-align:-2px;}
+  .empty{text-align:center;color:var(--sub);font-size:13px;padding:40px 0;line-height:1.8;}
+  .storagenote{
+    margin:16px 4px 0;font-size:11.5px;color:var(--sub);line-height:1.8;
+    background:#f0ece3;border-radius:10px;padding:10px 14px;
+  }
+
+  /* ---------- tabbar ---------- */
+  nav{
+    position:fixed;bottom:0;left:0;right:0;
+    background:rgba(255,255,255,.95);backdrop-filter:blur(10px);
+    border-top:1px solid var(--line);
+    display:flex;max-width:480px;margin:0 auto;
+    padding-bottom:env(safe-area-inset-bottom);
+  }
+  nav button{
+    flex:1;border:none;background:none;padding:10px 0 12px;cursor:pointer;
+    font-family:inherit;font-size:11px;color:var(--sub);
+  }
+  nav button .ic{display:block;font-size:20px;margin-bottom:2px;}
+  nav button .ic svg{width:21px;height:21px;}
+  nav button.on{color:var(--accent-deep);font-weight:700;}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header>
+    <h1>きょうの運動 <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#7fae8e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px"><path d="M5 21c.5-8 5-13 14-16-1 9-5.5 14-12.5 15.5"/><path d="M5 21c3-4.5 6.5-7.5 10-9"/></svg></h1>
+    <p>気になるところを、今日のペースで。</p>
+  </header>
+
+  <!-- ===== main flow ===== -->
+  <div id="tab-main">
+    <div class="stepbar" id="stepbar">
+      <span class="on"></span><span></span><span></span><span></span>
+    </div>
+
+    <!-- STEP 1: part -->
+    <section class="screen active" id="s-part">
+      <div class="q">どこが気になりますか?</div>
+      <div class="grid2" id="partGrid"></div>
+    </section>
+
+    <!-- STEP 2: time -->
+    <section class="screen" id="s-time">
+      <div class="q">どのくらい時間をとれますか?</div>
+      <div class="grid1" id="timeGrid"></div>
+      <button class="backbtn" onclick="goStep(1)">← もどる</button>
+    </section>
+
+    <!-- STEP 3: intensity -->
+    <section class="screen" id="s-intensity">
+      <div class="q">今日はどんな日ですか?</div>
+      <div class="grid1" id="intGrid"></div>
+      <button class="backbtn" onclick="goStep(2)">← もどる</button>
+    </section>
+
+    <!-- STEP 4: menu -->
+    <section class="screen" id="s-menu">
+      <div class="summary" id="menuSummary"></div>
+      <div class="roundinfo" id="roundInfo"></div>
+      <div class="q" style="margin-bottom:10px;">きょうのメニュー <small>種目名をタップすると、やり方が見られます</small></div>
+      <div id="exList"></div>
+      <button class="donebtn" onclick="recordDone()"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;margin-right:4px"><path d="M4 12.5l5.5 5.5L20 6.5"/></svg>できた!を記録する</button>
+      <button class="backbtn" onclick="goStep(3)">← 条件を変える</button>
+    </section>
+
+    <!-- STEP 5: done -->
+    <section class="screen" id="s-done">
+      <div class="donecard">
+        <div class="big"><svg viewBox="0 0 48 48" width="64" height="64" fill="none" stroke="#7fae8e" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="24" cy="24" r="20"/><path d="M15 24l6.5 6.5L33 18"/></svg></div>
+        <h2>おつかれさまでした!</h2>
+        <p id="doneMsg"></p>
+      </div>
+      <button class="donebtn" style="background:var(--green);" onclick="goStep(1)">はじめの画面にもどる</button>
+    </section>
+  </div>
+
+  <!-- ===== history tab ===== -->
+  <div id="tab-history" style="display:none;">
+    <div class="stat">
+      <div class="box"><div class="num" id="statMonth">0</div><div class="lbl">今月の回数</div></div>
+      <div class="box"><div class="num" id="statTotal">0</div><div class="lbl">これまでの合計</div></div>
+      <div class="box"><div class="num" id="statStreak">0</div><div class="lbl">連続日数</div></div>
+    </div>
+    <div id="logList"></div>
+    <p class="storagenote">🔒 記録はこの端末(ブラウザ)の中だけに保存されます。アプリを閉じても消えませんが、ブラウザの「履歴・サイトデータの消去」をすると記録も消えるのでご注意ください。</p>
+  </div>
+
+</div>
+
+<nav>
+  <button class="on" id="navMain" onclick="switchTab('main')"><span class="ic"><svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M16 24h16"/><rect x="8" y="15" width="6" height="18" rx="2"/><rect x="34" y="15" width="6" height="18" rx="2"/><path d="M4 20v8M44 20v8"/></svg></span>運動する</button>
+  <button id="navHistory" onclick="switchTab('history')"><span class="ic"><svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8 39a5 5 0 0 1 5-5h27"/><path d="M13 4h27v40H13a5 5 0 0 1-5-5V9a5 5 0 0 1 5-5z"/></svg></span>きろく</button>
+</nav>
+
+<script>
+/* =====================================================
+   運動データベース
+   type: stretch(ストレッチ系) / strength(筋トレ系)
+===================================================== */
+const EX = {
+  /* --- 首 --- */
+  neck_ff:{name:"首を前後にゆっくり倒す",type:"stretch",time:"前後 各20秒×2",steps:[
+    "背すじを伸ばして座る(立ってもOK)",
+    "息を吐きながら、あごを胸に近づけるように首を前へゆっくり倒す",
+    "20秒キープしたら、今度は天井を見るようにゆっくり後ろへ",
+    "痛気持ちいいところで止めるのがコツ。反動はつけない"],
+    tip:"呼吸は止めずに。後ろに倒すときはあごを突き上げすぎないように。"},
+  neck_side:{name:"首を左右に倒す",type:"stretch",time:"左右 各30秒",steps:[
+    "背すじを伸ばし、肩の力を抜く",
+    "右耳を右肩に近づけるように、頭をゆっくり真横に倒す",
+    "首の左側が伸びるのを感じながら30秒キープ",
+    "反対側も同じように"],
+    tip:"倒した側と反対の肩が上がりやすいので、下げる意識を。"},
+  neck_roll:{name:"首回し",type:"stretch",time:"左右 各5周",steps:[
+    "あごを引いて、まず首を前に倒す",
+    "そこから大きな円を描くように、ゆっくり右回りに5周",
+    "左回りも同じく5周"],
+    tip:"目が回らないよう、とにかくゆっくり。痛む角度は飛ばしてOK。"},
+  shrug_drop:{name:"肩すくめ(上げてストン)",type:"stretch",time:"10回",steps:[
+    "両肩を耳に近づけるようにグーッとすくめる",
+    "3秒キープしたら、力を抜いて一気にストンと落とす",
+    "これを10回繰り返す"],
+    tip:"落とすときに「ふーっ」と息を吐くとリラックス効果アップ。"},
+  chin_tuck:{name:"あご引き(二重あご体操)",type:"strength",time:"10回",steps:[
+    "背すじを伸ばして正面を向く",
+    "頭の位置は変えずに、あごだけを後ろに水平スライド(二重あごを作るイメージ)",
+    "3秒キープして戻す。これを10回"],
+    tip:"スマホ首(ストレートネック)対策の定番。上を向いたり下を向いたりしないこと。"},
+  neck_side_hand:{name:"手で頭を押さえて首横伸ばし",type:"stretch",time:"左右 各30秒",steps:[
+    "右手を頭の左側に添える",
+    "手の重みで頭を右にゆっくり倒す(強く引っ張らない)",
+    "首の左側が伸びた状態で30秒キープ",
+    "反対側も同じように"],
+    tip:"「引っ張る」のではなく「手の重さを乗せる」だけで十分伸びます。"},
+  towel_neck:{name:"タオル首ストレッチ",type:"stretch",time:"30秒×2",steps:[
+    "フェイスタオルを首の後ろに引っ掛け、両端を手で持つ",
+    "タオルを斜め上前方に軽く引きながら、ゆっくり上を向く",
+    "首の前側が気持ちよく伸びるところで30秒キープ"],
+    tip:"タオルが首を支えてくれるので、後ろに倒すのが苦手な人でも安心。"},
+  scap_squeeze:{name:"肩甲骨寄せ",type:"strength",time:"10回",steps:[
+    "背すじを伸ばし、両腕を軽く後ろに引く",
+    "左右の肩甲骨を背中の中心にグーッと寄せる",
+    "3秒キープしてゆるめる。これを10回"],
+    tip:"胸を張るイメージ。肩が上がらないように注意。"},
+  chest_open_neck:{name:"胸を開いて首を斜め上に伸ばす",type:"stretch",time:"左右 各30秒",steps:[
+    "両手を体の後ろで組む(組めなければ腰に当てるだけでOK)",
+    "胸を開きながら、顔を左斜め上へゆっくり向ける",
+    "首の右前側が伸びるのを感じて30秒。反対側も"],
+    tip:"デスクワークで縮こまった首の前側〜鎖骨まわりに効きます。"},
+  chin_tuck_hold:{name:"あご引きキープ",type:"strength",time:"10秒×5回",steps:[
+    "壁に背中と後頭部を軽くつけて立つ",
+    "あごを引いて、後頭部を壁に押し付けるように力を入れる",
+    "10秒キープ×5回"],
+    tip:"首の深いところの筋肉を鍛えて、良い姿勢を保ちやすくします。"},
+  iso_front:{name:"手と頭で押し合い(前)",type:"strength",time:"10秒×3回",steps:[
+    "両手のひらをおでこに当てる",
+    "頭は前に倒そうとし、手はそれを押し返す(実際には動かない)",
+    "力比べの状態で10秒キープ×3回"],
+    tip:"動かさずに力を入れるトレーニング。首を痛めにくい安全な鍛え方です。"},
+  iso_back:{name:"手と頭で押し合い(後ろ)",type:"strength",time:"10秒×3回",steps:[
+    "両手を組んで後頭部に当てる",
+    "頭は後ろに倒そうとし、手はそれを押し返す",
+    "10秒キープ×3回。呼吸は止めない"],
+    tip:"力は6〜7割で十分。プルプルするほど頑張らなくてOK。"},
+  iso_side:{name:"手と頭で押し合い(左右)",type:"strength",time:"左右 各10秒×2回",steps:[
+    "右手のひらを右こめかみに当てる",
+    "頭は右に倒そうとし、手は押し返す。10秒キープ",
+    "左側も同じように。各2回ずつ"],
+    tip:"首がグラグラ動かないよう、じわーっと力を入れるのがポイント。"},
+  towel_chin:{name:"タオル抵抗あご引き",type:"strength",time:"10回",steps:[
+    "タオルを後頭部に引っ掛け、両端を前方向に軽く引く",
+    "タオルの抵抗に逆らって、あごを引きながら頭を後ろへ押す",
+    "3秒キープして戻す×10回"],
+    tip:"あご引き体操の強化版。タオルの引きは軽めからスタート。"},
+  slow_shrug:{name:"肩すくめゆっくり",type:"strength",time:"10回",steps:[
+    "3秒かけて両肩を耳に近づけるように上げる",
+    "上で1秒キープ",
+    "3秒かけてゆっくり下ろす。これを10回"],
+    tip:"ペットボトルを両手に持つと負荷アップ。首すじ〜肩の筋トレです。"},
+
+  /* --- 肩 --- */
+  shoulder_roll:{name:"肩回し(前・後ろ)",type:"stretch",time:"前後 各10周",steps:[
+    "指先を軽く肩に添える(伸ばしたままでもOK)",
+    "ひじで大きな円を描くように、後ろ回しに10周",
+    "前回しも10周"],
+    tip:"「ひじで円を描く」と意識すると肩甲骨までしっかり動きます。"},
+  arm_dangle:{name:"腕ぶらぶら",type:"stretch",time:"30秒×2",steps:[
+    "立って上半身の力を完全に抜く",
+    "体を軽く左右にひねり、その勢いで両腕を鞭のようにぶらぶらさせる",
+    "30秒×2セット"],
+    tip:"頑張らないのがコツ。血行が良くなって肩がじんわり温まります。"},
+  wall_chest:{name:"壁に手をついて胸開き",type:"stretch",time:"左右 各30秒",steps:[
+    "壁の横に立ち、右手のひらを肩の高さで壁につける",
+    "そのまま体を左にゆっくりひねる",
+    "右胸〜肩の前側が伸びたところで30秒。反対側も"],
+    tip:"巻き肩対策の定番。手の高さを変えると伸びる場所が変わります。"},
+  towel_pull_squeeze:{name:"タオル引っ張り肩甲骨寄せ",type:"strength",time:"10回",steps:[
+    "タオルの両端を持ち、腕を前に伸ばす",
+    "タオルを左右に引っ張り合いながら、ひじを曲げて胸に引き寄せる",
+    "肩甲骨をギュッと寄せて3秒キープ、戻す×10回"],
+    tip:"タオルを引っ張り合う力は抜かないまま動かすのがポイント。"},
+  wall_pushup:{name:"壁腕立て伏せ",type:"strength",time:"10回×2",steps:[
+    "壁から一歩離れて立ち、肩幅より少し広く壁に両手をつく",
+    "ひじを曲げて、胸を壁に近づける",
+    "壁を押して元に戻る。10回×2セット"],
+    tip:"体は頭からかかとまで一直線に。楽なら壁から足を遠ざけると負荷アップ。"},
+  banzai_w:{name:"バンザイ→ひじ引き下げ(W運動)",type:"strength",time:"10回",steps:[
+    "両腕をバンザイのようにまっすぐ上げる",
+    "ひじを曲げながら、体の横へゆっくり引き下げる(腕でWの字を作るイメージ)",
+    "肩甲骨を下に寄せる感覚で3秒キープ、また上げる×10回"],
+    tip:"肩こりの原因になりやすい「肩甲骨まわりの動き不足」を解消します。"},
+  arm_circle_big:{name:"大きく腕回し",type:"stretch",time:"前後 各10周",steps:[
+    "片腕ずつ、水泳のクロールのように大きく後ろへ回す(左右各10周)",
+    "次に背泳ぎのように前へ回す(左右各10周)"],
+    tip:"できるだけ大きな円を描くこと。肩甲骨から動かすイメージで。"},
+  catcow:{name:"キャット&カウ(背中丸め・反らし)",type:"stretch",time:"10往復",steps:[
+    "四つ這いになる(肩の真下に手、脚の付け根の真下に膝)",
+    "息を吐きながら背中を天井へ丸め、おへそをのぞき込む(ネコのポーズ)",
+    "息を吸いながら背中を反らせ、目線を斜め上へ(ウシのポーズ)",
+    "ゆっくり10往復"],
+    tip:"腰だけで反らず、背中全体をなめらかに動かすのがコツ。"},
+  pushup:{name:"腕立て伏せ(膝つきOK)",type:"strength",time:"8〜10回×2",steps:[
+    "肩幅より少し広く手をつき、膝を床につける(できる人は膝を浮かせる)",
+    "頭から膝(またはかかと)まで一直線を保つ",
+    "ひじを曲げて胸を床に近づけ、押し上げる",
+    "8〜10回×2セット"],
+    tip:"お尻が上がったり腰が反ったりしないように。回数よりフォーム優先。"},
+  pike_pushup:{name:"パイクプッシュアップ",type:"strength",time:"6〜8回×2",steps:[
+    "腕立ての姿勢からお尻を高く上げ、体で「へ」の字を作る",
+    "ひじを曲げて、頭を床にゆっくり近づける",
+    "押し戻す。6〜8回×2セット"],
+    tip:"肩に強めに効く種目。キツければ回数を減らしてOK。"},
+  towel_latpull:{name:"タオルラットプル(引き下げ)",type:"strength",time:"10回×2",steps:[
+    "タオルの両端を持って、腕を頭上に伸ばす",
+    "タオルを左右に引っ張り合ったまま、ひじを曲げて首の後ろ側へ引き下げる",
+    "肩甲骨を下に寄せて2秒キープ、戻す×10回×2セット"],
+    tip:"背中の大きな筋肉(広背筋)に効きます。引っ張り合う力を抜かないこと。"},
+  plank_tap:{name:"プランクで肩タッチ",type:"strength",time:"左右交互20回",steps:[
+    "腕立て伏せの姿勢をとる(手は肩の真下)",
+    "体が揺れないようにしながら、右手で左肩をタッチ",
+    "手を戻し、左手で右肩をタッチ。交互に20回"],
+    tip:"お尻が左右に振れないよう、足を広めに開くと安定します。"},
+  arm_circle_fast:{name:"腕を伸ばして小さく高速回し",type:"strength",time:"前後 各30秒",steps:[
+    "両腕を真横にまっすぐ伸ばす(体でTの字)",
+    "小さな円を描くように速く回す。前回し30秒",
+    "後ろ回しも30秒。腕は下ろさない"],
+    tip:"地味に見えて肩がかなり熱くなります。腕の高さを保つのが大事。"},
+
+  /* --- 背中 --- */
+  child_pose:{name:"チャイルドポーズ",type:"stretch",time:"40秒×2",steps:[
+    "正座から両手を前にすべらせ、上半身を床に近づける",
+    "おでこを床につけ、お尻はかかとの上に",
+    "腕を遠くに伸ばし、背中の伸びを感じながら深呼吸40秒"],
+    tip:"腰・背中がじんわり伸びる休憩ポーズ。呼吸をゆっくり深く。"},
+  standing_reach:{name:"立って大きく背伸び",type:"stretch",time:"20秒×3",steps:[
+    "足を腰幅に開いて立ち、両手を組んで頭上へ",
+    "手のひらを天井に向けてグーッと背伸び",
+    "そのまま体を右に少し倒して脇腹も伸ばす。左も"],
+    tip:"かかとは床につけたままでOK。息を吐きながら伸ばします。"},
+  seated_twist:{name:"座って体ひねり",type:"stretch",time:"左右 各30秒",steps:[
+    "椅子に浅く座り、背すじを伸ばす",
+    "右手を左膝の外側にかけ、息を吐きながら上半身を左へひねる",
+    "背骨がねじれるのを感じて30秒。反対側も"],
+    tip:"目線も一緒に後ろへ。腰からではなく胸からひねるイメージ。"},
+  chest_open:{name:"胸開きストレッチ",type:"stretch",time:"30秒×2",steps:[
+    "両手を体の後ろで組む(タオルを持ってもOK)",
+    "肩甲骨を寄せながら、組んだ手を斜め下後方へ引く",
+    "胸が開くのを感じて30秒キープ×2回"],
+    tip:"背中側を縮めることで、丸まった背中をリセットします。"},
+  towel_row:{name:"タオルロウ(座って漕ぐ)",type:"strength",time:"10回×2",steps:[
+    "床に脚を伸ばして座り、足の裏にタオルを引っ掛けて両端を持つ",
+    "背すじを伸ばしたまま、ボートを漕ぐようにタオルを引く",
+    "ひじを体の後ろへ、肩甲骨を寄せて2秒キープ",
+    "ゆっくり戻す×10回×2セット"],
+    tip:"背中が丸まると効果半減。胸を張ったまま引くこと。"},
+  back_ext_light:{name:"うつ伏せ軽め上体起こし",type:"strength",time:"8回×2",steps:[
+    "うつ伏せになり、両手を顔の横に置く",
+    "手で軽く支えながら、胸を少しだけ床から浮かせる",
+    "2秒キープしてゆっくり下ろす×8回"],
+    tip:"高く上げなくてOK。腰が痛い日はお休みしましょう。"},
+  scap_squeeze_hold:{name:"肩甲骨寄せキープ",type:"strength",time:"10秒×5回",steps:[
+    "背すじを伸ばして立つ(座ってもOK)",
+    "両ひじを軽く曲げ、肩甲骨を背中の中心にグーッと寄せる",
+    "10秒キープしてゆるめる×5回"],
+    tip:"肩が耳に近づかないよう、肩は下げたまま寄せます。"},
+  bird_dog:{name:"バードドッグ(手脚対角伸ばし)",type:"strength",time:"左右交互10回",steps:[
+    "四つ這いになる",
+    "右手と左脚を、床と平行になるまでまっすぐ伸ばす",
+    "2秒キープして戻し、左手と右脚に交代",
+    "交互に10回"],
+    tip:"腰が反ったり体が傾いたりしないよう、お腹に軽く力を入れて。"},
+  wall_angel:{name:"ウォールエンジェル(壁で腕上下)",type:"strength",time:"10回",steps:[
+    "壁に背中・後頭部・お尻をつけて立つ",
+    "両腕を「Wの字」にして、腕の甲側を壁につける",
+    "壁から離さないよう意識しながら、腕をゆっくり上へ伸ばし、また下げる×10回"],
+    tip:"腕が壁から離れてもOK、「つけようとする」だけで効いています。"},
+  back_ext:{name:"バックエクステンション(上体反らし)",type:"strength",time:"10回×2",steps:[
+    "うつ伏せになり、両手を耳の横に添える",
+    "息を吐きながら、胸を床からゆっくり持ち上げる",
+    "2秒キープしてゆっくり下ろす×10回×2セット"],
+    tip:"あごは引いたまま、視線は斜め下。腰を反らしすぎないこと。"},
+  bird_dog_hold:{name:"バードドッグ長めキープ",type:"strength",time:"左右 各20秒×2",steps:[
+    "四つ這いから、右手と左脚をまっすぐ伸ばす",
+    "そのまま20秒キープ。体が揺れないように",
+    "左手と右脚も20秒。各2セット"],
+    tip:"伸ばした手脚と背中が一直線になるのが理想形です。"},
+  snow_angel:{name:"うつ伏せスノーエンジェル",type:"strength",time:"8回",steps:[
+    "うつ伏せで両腕を頭の上に伸ばし、胸と腕を軽く床から浮かせる",
+    "浮かせたまま、雪の上で天使を描くように腕を大きく回して腰の横へ",
+    "同じ軌道で頭上に戻す×8回"],
+    tip:"背中全体をフルに使うキツめの種目。浮かせる高さは低くてOK。"},
+  superman:{name:"スーパーマン(手脚全部浮かせ)",type:"strength",time:"15秒×3回",steps:[
+    "うつ伏せで両手両脚をまっすぐ伸ばす",
+    "手・胸・脚を同時に床から浮かせる",
+    "15秒キープ×3回"],
+    tip:"高さより「長く伸びる」意識で。呼吸は止めないこと。"},
+
+  /* --- 腰 --- */
+  knee_hug:{name:"仰向けで膝抱え",type:"stretch",time:"40秒×2",steps:[
+    "仰向けに寝て、両膝を胸に引き寄せる",
+    "両手で膝を抱え、腰が丸まるのを感じながら40秒",
+    "軽く左右にゆらゆら揺れても気持ちいい"],
+    tip:"腰が伸びてリラックスできる定番。寝る前にもおすすめ。"},
+  knee_sway:{name:"仰向けで膝を左右に倒す",type:"stretch",time:"左右交互10回",steps:[
+    "仰向けで両膝を立て、腕は横に広げる",
+    "両膝をそろえたまま、ゆっくり右へ倒す",
+    "3秒キープして中央へ戻し、左へ。交互に10回"],
+    tip:"肩が床から浮かないように。腰まわりのねじれをほぐします。"},
+  pelvic_tilt:{name:"骨盤の前後傾",type:"stretch",time:"10往復",steps:[
+    "仰向けで両膝を立てる",
+    "息を吐きながら、腰で床を押しつぶすように骨盤を後ろに傾ける",
+    "息を吸いながら、腰と床の間にすき間を作るように前に傾ける",
+    "ゆっくり10往復"],
+    tip:"小さな動きでOK。腰まわりの細かい筋肉が目覚めます。"},
+  supine_twist:{name:"仰向け腰ひねりストレッチ",type:"stretch",time:"左右 各40秒",steps:[
+    "仰向けで右膝を胸に引き寄せる",
+    "左手で右膝を持ち、体の左側へゆっくり倒す",
+    "顔は右へ向け、腰のねじれを感じて40秒。反対側も"],
+    tip:"肩は床につけたまま。呼吸を深くすると伸びが深まります。"},
+  hip_lift:{name:"ヒップリフト(お尻上げ)",type:"strength",time:"10回×2",steps:[
+    "仰向けで両膝を立て、足は腰幅に開く",
+    "お尻をキュッと締めながら、膝〜肩が一直線になるまで持ち上げる",
+    "2秒キープしてゆっくり下ろす×10回×2セット"],
+    tip:"腰で反り上げず、お尻の力で持ち上げるのがポイント。"},
+  draw_in:{name:"ドローイン(お腹へこませ呼吸)",type:"strength",time:"10秒×5回",steps:[
+    "仰向けで両膝を立てる(慣れたら座っても立ってもOK)",
+    "息を大きく吸ってお腹をふくらませる",
+    "口から細く吐きながら、おへそを背中に近づけるようにお腹をへこませる",
+    "へこませたまま浅い呼吸で10秒キープ×5回"],
+    tip:"腰を守る「天然のコルセット」を鍛える運動です。"},
+  knee_hug_ext:{name:"膝抱え→脚伸ばし交互",type:"stretch",time:"左右交互10回",steps:[
+    "仰向けで右膝を両手で抱え、左脚は床にまっすぐ伸ばす",
+    "20秒たったら脚を交代",
+    "交互に繰り返す"],
+    tip:"伸ばしている脚の付け根(前側)も一緒に伸びています。"},
+  plank:{name:"プランク",type:"strength",time:"20〜30秒×3",steps:[
+    "うつ伏せから、ひじとつま先で体を支える",
+    "頭からかかとまで一直線をキープ",
+    "20〜30秒×3セット"],
+    tip:"お尻が上がる・腰が落ちるのはNG。鏡や窓に映してチェック。"},
+  dead_bug:{name:"デッドバグ(手脚交互伸ばし)",type:"strength",time:"左右交互10回",steps:[
+    "仰向けで両腕を天井へ、両膝を90度に上げる(ひっくり返った虫のポーズ)",
+    "腰を床に押し付けたまま、右腕を頭側へ・左脚を前へ同時に伸ばす",
+    "床につく直前で戻し、反対側へ。交互に10回"],
+    tip:"腰が床から浮いたら伸ばしすぎのサイン。動かせる範囲でOK。"},
+  single_hip_lift:{name:"片脚ヒップリフト",type:"strength",time:"左右 各8回",steps:[
+    "仰向けで両膝を立て、右脚をまっすぐ伸ばして浮かせる",
+    "左脚のお尻の力で、腰を持ち上げる",
+    "2秒キープして下ろす×8回。脚を交代"],
+    tip:"骨盤が傾かないよう水平をキープ。かなり効くので回数は無理せず。"},
+  knee_side_plank:{name:"膝つきサイドプランク",type:"strength",time:"左右 各20秒×2",steps:[
+    "横向きに寝て、下のひじと膝で体を支える",
+    "腰を持ち上げて、頭〜膝を一直線に",
+    "20秒キープ×2セット。反対側も"],
+    tip:"体の横(わき腹)に効きます。肩の真下にひじを置くこと。"},
+
+  /* --- お尻 --- */
+  figure4_supine:{name:"仰向け4の字ストレッチ",type:"stretch",time:"左右 各40秒",steps:[
+    "仰向けで両膝を立て、右足首を左膝の上に乗せる(脚で4の字)",
+    "左ももの裏を両手で抱え、胸のほうへ引き寄せる",
+    "右のお尻が伸びるのを感じて40秒。反対側も"],
+    tip:"お尻のこりに効く代表ストレッチ。頭は床につけたままでOK。"},
+  figure4_chair:{name:"椅子で4の字前倒し",type:"stretch",time:"左右 各40秒",steps:[
+    "椅子に座り、右足首を左膝の上に乗せる",
+    "背すじを伸ばしたまま、上半身をゆっくり前に倒す",
+    "右のお尻が伸びたところで40秒。反対側も"],
+    tip:"背中を丸めずに「股関節から」倒すのがコツ。仕事の合間にも◎。"},
+  pelvis_rock:{name:"骨盤ゆらゆら",type:"stretch",time:"1分",steps:[
+    "仰向けで両膝を立てる",
+    "膝を小さく左右にゆらゆら揺らす",
+    "力を抜いて1分間、心地よいリズムで"],
+    tip:"頑張らないほぐし運動。お尻と腰の緊張がゆるみます。"},
+  prone_leg_small:{name:"うつ伏せで脚を小さく上げ下げ",type:"strength",time:"左右 各10回",steps:[
+    "うつ伏せに寝て、両脚を伸ばす",
+    "右脚を膝を伸ばしたまま、床から10cmほど持ち上げる",
+    "ゆっくり下ろす×10回。左脚も"],
+    tip:"高く上げると腰が反るので「低く・ゆっくり」がお尻に効くコツ。"},
+  clamshell:{name:"クラムシェル(膝パカパカ)",type:"strength",time:"左右 各15回",steps:[
+    "横向きに寝て、膝を軽く曲げて重ねる",
+    "かかとをつけたまま、上の膝を貝が開くようにパカッと開く",
+    "ゆっくり閉じる×15回。反対側も"],
+    tip:"骨盤が後ろに倒れないように。お尻の横に効いていれば正解。"},
+  side_leg_raise:{name:"横向き脚上げ",type:"strength",time:"左右 各12回",steps:[
+    "横向きに寝て、下の腕で頭を支える",
+    "上の脚を伸ばしたまま、ゆっくり45度くらいまで上げる",
+    "ゆっくり下ろす×12回。反対側も"],
+    tip:"つま先が上を向くと効きが逃げます。つま先は正面〜やや下向きで。"},
+  kickback:{name:"キックバック(後ろ蹴り上げ)",type:"strength",time:"左右 各12回",steps:[
+    "四つ這いになる",
+    "右膝を曲げたまま、足の裏で天井を押すように持ち上げる",
+    "お尻に力が入ったところで1秒キープ、戻す×12回。左脚も"],
+    tip:"腰を反らせて高く上げるのはNG。お尻の力だけで上げます。"},
+  squat_shallow:{name:"浅めスクワット",type:"strength",time:"10回×2",steps:[
+    "足を肩幅に開き、つま先は少し外向き",
+    "椅子に座るようにお尻を後ろへ引きながら、浅く(45度くらい)しゃがむ",
+    "かかとで床を押して立ち上がる×10回×2セット"],
+    tip:"膝がつま先より大きく前に出ないように。不安なら椅子の前でやると安心。"},
+  wide_squat:{name:"ワイドスクワット",type:"strength",time:"10回×2",steps:[
+    "足を肩幅の1.5倍に開き、つま先は斜め45度外向き",
+    "背すじを伸ばしたまま、真下にしゃがむ",
+    "ももが床と平行になる手前で立ち上がる×10回×2セット"],
+    tip:"内ももとお尻に効きます。膝はつま先と同じ方向へ。"},
+  kickback_hold:{name:"キックバック上でキープ",type:"strength",time:"左右 各10秒×3回",steps:[
+    "四つ這いから、右足の裏で天井を押すように持ち上げる",
+    "一番お尻に力が入る位置で10秒キープ",
+    "3回繰り返したら左脚も"],
+    tip:"プルプルしてきたら効いている証拠。呼吸は止めずに。"},
+  bulgarian:{name:"ブルガリアンスクワット",type:"strength",time:"左右 各8回",steps:[
+    "椅子(またはソファ)の一歩前に立ち、右足の甲を座面に乗せる",
+    "背すじを伸ばしたまま、左膝を曲げて腰を落とす",
+    "左のお尻・ももで立ち上がる×8回。脚を交代"],
+    tip:"最強クラスのお尻トレ。バランスが不安なら壁に手をついてOK。"},
+  side_leg_raise_fast:{name:"横向き脚上げ連続",type:"strength",time:"左右 各20回",steps:[
+    "横向きに寝て、上の脚を伸ばす",
+    "テンポよく上げ下げを20回(下ろすとき床につけない)",
+    "反対側も20回"],
+    tip:"床につけずに動き続けるのがポイント。お尻の横が熱くなります。"},
+
+  /* --- 下半身 --- */
+  calf_stretch:{name:"ふくらはぎ伸ばし",type:"stretch",time:"左右 各30秒",steps:[
+    "壁に両手をつき、右脚を大きく後ろに引く",
+    "後ろ脚のかかとを床につけたまま、前の膝をゆっくり曲げる",
+    "ふくらはぎが伸びたところで30秒。反対側も"],
+    tip:"後ろ足のつま先はまっすぐ前へ。かかとが浮かないように。"},
+  quad_stretch:{name:"前もも伸ばし",type:"stretch",time:"左右 各30秒",steps:[
+    "壁や椅子に左手を添えて立つ",
+    "右足の甲を右手でつかみ、かかとをお尻に近づける",
+    "前ももが伸びたところで30秒。反対側も"],
+    tip:"膝は体の真下〜やや後ろへ。腰を反らないよう、お腹に軽く力を。"},
+  ham_stretch:{name:"もも裏伸ばし",type:"stretch",time:"左右 各30秒",steps:[
+    "右脚を一歩前に出し、かかとを床につけてつま先を上げる",
+    "お尻を後ろに引きながら、上半身を股関節から前に倒す",
+    "もも裏が伸びたところで30秒。反対側も"],
+    tip:"背中を丸めず「胸を前に見せる」感じで倒すとよく伸びます。"},
+  ankle_roll:{name:"足首回し",type:"stretch",time:"左右 各10周ずつ",steps:[
+    "椅子に座り、右足を左ももの上に乗せる",
+    "右足の指の間に左手の指を入れて握手する",
+    "手で足首を大きくゆっくり回す。内・外10周ずつ。反対も"],
+    tip:"指の間に手が入らなければ、足先を持つだけでもOK。"},
+  calf_raise_slow:{name:"ゆっくりかかと上げ",type:"strength",time:"10回",steps:[
+    "壁や椅子に軽く手を添えて立つ",
+    "3秒かけてかかとを上げ、つま先立ちに",
+    "3秒かけてゆっくり下ろす×10回"],
+    tip:"ふくらはぎは「第二の心臓」。血流改善やむくみ対策に。"},
+  calf_raise:{name:"かかと上げ",type:"strength",time:"15回×2",steps:[
+    "足を腰幅に開いて立つ",
+    "かかとを上げてつま先立ちになり、1秒キープ",
+    "ゆっくり下ろす×15回×2セット"],
+    tip:"体が前後に揺れないよう、まっすぐ上に伸びる意識で。"},
+  high_knee_slow:{name:"その場もも上げ",type:"strength",time:"40秒×2",steps:[
+    "背すじを伸ばして立つ",
+    "ももが床と平行になる高さまで、左右交互に持ち上げる",
+    "腕も一緒に振って40秒×2セット"],
+    tip:"ドタバタせず、お腹に力を入れて静かに下ろすのがコツ。"},
+  lunge_shallow:{name:"浅めランジ",type:"strength",time:"左右交互10回",steps:[
+    "右脚を一歩前に踏み出す",
+    "両膝を軽く曲げて、腰を少しだけ下げる",
+    "前脚で床を押して戻る。左右交互に10回"],
+    tip:"上半身はまっすぐのまま。前の膝はつま先と同じ向きに。"},
+  wall_sit:{name:"壁に寄りかかり空気椅子",type:"strength",time:"20秒×2",steps:[
+    "壁に背中をつけ、足を一歩前に出す",
+    "壁に寄りかかったまま、膝が90度になる手前まで腰を下ろす",
+    "20秒キープ×2セット"],
+    tip:"キツければ浅めでOK。膝がつま先より前に出ないように。"},
+  squat:{name:"スクワット",type:"strength",time:"10回×3",steps:[
+    "足を肩幅に開き、つま先は少し外向き",
+    "お尻を後ろに引きながら、ももが床と平行になるまでしゃがむ",
+    "かかとで床を押して立ち上がる×10回×3セット"],
+    tip:"「王様の運動」。背中はまっすぐ、目線は正面をキープ。"},
+  lunge:{name:"ランジ",type:"strength",time:"左右交互16回",steps:[
+    "右脚を大きく一歩前へ踏み出す",
+    "後ろ膝が床に近づくまで、腰を真下に下ろす",
+    "前脚で強く床を押して戻る。左右交互に16回"],
+    tip:"上半身が前に倒れないように。バランスが不安なら壁の近くで。"},
+  high_knee_fast:{name:"速いもも上げ(その場ダッシュ)",type:"strength",time:"20秒×3",steps:[
+    "その場で、できるだけ速くもも上げをする",
+    "腕もしっかり振る",
+    "20秒全力→10秒休憩×3セット"],
+    tip:"心拍数が上がる有酸素種目。マンション等で音が気になる時はゆっくり高くでもOK。"},
+  single_calf_raise:{name:"片脚かかと上げ",type:"strength",time:"左右 各10回",steps:[
+    "壁に手を添え、右脚だけで立つ(左足は軽く浮かせる)",
+    "右のかかとをゆっくり上げ下げ×10回",
+    "脚を交代して10回"],
+    tip:"両脚でやるより負荷は倍以上。バランス力も鍛えられます。"},
+  wide_squat_pulse:{name:"ワイドスクワット+小刻み上下",type:"strength",time:"10回+パルス10回×2",steps:[
+    "足を大きく開いてワイドスクワットを10回",
+    "最後にしゃがんだ位置で止まり、小さく10回上下に揺れる(パルス)",
+    "これを2セット"],
+    tip:"最後のパルスで一気に追い込めます。内もも・お尻がプルプルに。"},
+};
+
+/* =====================================================
+   部位×強度 → メニュー(5種目)
+===================================================== */
+const MENUS = {
+  "首":{
+    easy:["neck_ff","neck_side","neck_roll","shrug_drop","chin_tuck"],
+    mid:["neck_side_hand","towel_neck","scap_squeeze","chest_open_neck","chin_tuck_hold"],
+    hard:["iso_front","iso_back","iso_side","towel_chin","slow_shrug"]},
+  "肩":{
+    easy:["shrug_drop","shoulder_roll","arm_dangle","wall_chest","neck_side_hand"],
+    mid:["towel_pull_squeeze","wall_pushup","banzai_w","arm_circle_big","catcow"],
+    hard:["pushup","pike_pushup","towel_latpull","plank_tap","arm_circle_fast"]},
+  "背中":{
+    easy:["catcow","child_pose","standing_reach","seated_twist","chest_open"],
+    mid:["towel_row","back_ext_light","scap_squeeze_hold","bird_dog","wall_angel"],
+    hard:["back_ext","bird_dog_hold","snow_angel","towel_latpull","superman"]},
+  "腰":{
+    easy:["knee_hug","knee_sway","pelvic_tilt","child_pose","supine_twist"],
+    mid:["hip_lift","catcow","bird_dog","draw_in","knee_hug_ext"],
+    hard:["plank","dead_bug","single_hip_lift","bird_dog_hold","knee_side_plank"]},
+  "お尻":{
+    easy:["figure4_supine","figure4_chair","knee_hug","pelvis_rock","prone_leg_small"],
+    mid:["hip_lift","clamshell","side_leg_raise","kickback","squat_shallow"],
+    hard:["single_hip_lift","wide_squat","kickback_hold","bulgarian","side_leg_raise_fast"]},
+  "下半身":{
+    easy:["calf_stretch","quad_stretch","ham_stretch","ankle_roll","calf_raise_slow"],
+    mid:["squat_shallow","calf_raise","high_knee_slow","lunge_shallow","wall_sit"],
+    hard:["squat","lunge","high_knee_fast","single_calf_raise","wide_squat_pulse"]},
+};
+
+/* 線画アイコン(人の形+気になる部位にマーカー) */
+const FIG_OPEN = `<svg viewBox="0 0 48 48" fill="none" stroke="#6b6555" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">`;
+const FIG_FRONT = `<circle cx="24" cy="10" r="5.5"/><path d="M24 16v14M24 18l-10 6M24 18l10 6M24 30l-7 12M24 30l7 12"/>`;
+const FIG_SIDE = `<circle cx="26.5" cy="9.5" r="5"/><path d="M25.5 15C21.5 19 20.5 25 22.5 31M22.5 31L19.5 43M22.5 31C25.5 35 26.5 39 26.5 43M25 19L28.5 27"/>`;
+function marker(x,y){
+  return `<circle cx="${x}" cy="${y}" r="5.5" stroke="#69a297" stroke-width="1.8" opacity=".5"/><circle cx="${x}" cy="${y}" r="2.8" fill="#69a297" stroke="none"/>`;
+}
+const PARTS = [
+  {key:"首",   icon:FIG_OPEN+FIG_FRONT+marker(24,17)+`</svg>`},
+  {key:"肩",   icon:FIG_OPEN+FIG_FRONT+marker(17,22)+marker(31,22)+`</svg>`},
+  {key:"背中", icon:FIG_OPEN+FIG_SIDE+marker(20,20.5)+`</svg>`},
+  {key:"腰",   icon:FIG_OPEN+FIG_SIDE+marker(19.5,26.5)+`</svg>`},
+  {key:"お尻", icon:FIG_OPEN+FIG_SIDE+marker(20,31.5)+`</svg>`},
+  {key:"下半身",icon:FIG_OPEN+FIG_FRONT+marker(20,36)+marker(28,36)+`</svg>`},
+];
+const TIMES = [
+  {key:10,label:"10分",note:"5種目を1周"},
+  {key:20,label:"20分",note:"5種目を2周"},
+  {key:30,label:"30分",note:"5種目を3周(3周目はゆっくりめ)"},
+];
+const ICON_MOON = `<svg viewBox="0 0 48 48" fill="none" stroke="#7ba895" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M42 25.6A18 18 0 1 1 22.4 6 14 14 0 0 0 42 25.6z"/></svg>`;
+const ICON_CLOUDSUN = `<svg viewBox="0 0 48 48" fill="none" stroke="#d9a13b" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="36" cy="10" r="4.5"/><path d="M36 1.5v3M44.5 10h-3M42 4l-2 2M30 4l2 2"/><path d="M30.8 27h-2A12.8 12.8 0 1 0 16.4 43h14.4a8 8 0 0 0 0-16z"/></svg>`;
+const ICON_FLAME = `<svg viewBox="0 0 48 48" fill="none" stroke="#d97b63" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M24 5c6.5 7.5 12 13.5 12 21a12 12 0 0 1-24 0C12 18.5 17.5 12.5 24 5z"/><path d="M24 23c2.6 3.2 5 5.8 5 8.7a5 5 0 0 1-10 0c0-2.9 2.4-5.5 5-8.7z" fill="#f6d9d0" stroke="none"/></svg>`;
+const ICON_PIN = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>`;
+const ICON_CLOCK = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>`;
+const INTENSITIES = [
+  {key:"easy",label:"頑張れない日",icon:ICON_MOON,note:"ストレッチ中心。寝たまま・座ったままでOK",cls:"c-easy"},
+  {key:"mid",label:"ちょっと頑張れる日",icon:ICON_CLOUDSUN,note:"軽い筋トレ+ストレッチ",cls:"c-mid"},
+  {key:"hard",label:"本気でやる日",icon:ICON_FLAME,note:"しっかり筋トレ。汗をかく日",cls:"c-hard"},
+];
+
+/* ===================================================== */
+let sel = {part:null, time:null, intensity:null};
+
+function goStep(n){
+  document.querySelectorAll("#tab-main .screen").forEach(s=>s.classList.remove("active"));
+  const ids=["s-part","s-time","s-intensity","s-menu","s-done"];
+  document.getElementById(ids[n-1]).classList.add("active");
+  const bars=document.querySelectorAll("#stepbar span");
+  bars.forEach((b,i)=>b.classList.toggle("on", i < Math.min(n,4)));
+  window.scrollTo(0,0);
+}
+
+function renderChoices(){
+  const pg=document.getElementById("partGrid");
+  pg.innerHTML = PARTS.map(p=>`
+    <div class="opt" onclick="pick('part','${p.key}')"><span class="emoji">${p.icon}</span>${p.key}</div>`).join("");
+  const tg=document.getElementById("timeGrid");
+  tg.innerHTML = TIMES.map(t=>`
+    <div class="opt" onclick="pick('time',${t.key})">${t.label}<span class="note">${t.note}</span></div>`).join("");
+  const ig=document.getElementById("intGrid");
+  ig.innerHTML = INTENSITIES.map(i=>`
+    <div class="opt" onclick="pick('intensity','${i.key}')"><span class="emoji">${i.icon}</span>${i.label}<span class="note">${i.note}</span></div>`).join("");
+}
+
+function pick(kind,val){
+  sel[kind]=val;
+  if(kind==="part") goStep(2);
+  else if(kind==="time") goStep(3);
+  else { renderMenu(); goStep(4); }
+}
+
+function renderMenu(){
+  const inten = INTENSITIES.find(i=>i.key===sel.intensity);
+  const time = TIMES.find(t=>t.key===sel.time);
+  document.getElementById("menuSummary").innerHTML = `
+    <span class="chip">${ICON_PIN} ${sel.part}</span>
+    <span class="chip">${ICON_CLOCK} ${time.label}</span>
+    <span class="chip ${inten.cls}">${inten.icon} ${inten.label}</span>`;
+  const rounds = sel.time/10;
+  document.getElementById("roundInfo").textContent =
+    rounds===1 ? "下の5種目を、上から順番に1周やりましょう。"
+    : `下の5種目を、上から順番に${rounds}周やりましょう。${rounds===3?"3周目は少しペースを落として、最後は深呼吸で終わると◎":"2周目は1周目よりていねいに動くのがコツ。"}`;
+  const ids = MENUS[sel.part][sel.intensity];
+  document.getElementById("exList").innerHTML = ids.map((id,i)=>{
+    const e=EX[id];
+    return `<div class="ex" id="ex-${i}">
+      <div class="ex-head" onclick="document.getElementById('ex-${i}').classList.toggle('open')">
+        <div class="ex-num">${i+1}</div>
+        <div class="ex-title">
+          <div class="name">${e.name}</div>
+          <div class="meta"><span class="tagchip ${e.type==='stretch'?'tag-stretch':'tag-strength'}">${e.type==='stretch'?'ストレッチ':'筋トレ'}</span>${e.time}</div>
+        </div>
+        <div class="ex-arrow">▶</div>
+      </div>
+      <div class="ex-body">
+        <ol>${e.steps.map(s=>`<li>${s}</li>`).join("")}</ol>
+        <div class="ex-tip">${e.tip}</div>
+      </div>
+    </div>`;
+  }).join("");
+}
+
+/* ---------- record ---------- */
+function loadLog(){ try{return JSON.parse(localStorage.getItem("exlog")||"[]");}catch(e){return [];} }
+function saveLog(l){ localStorage.setItem("exlog",JSON.stringify(l)); }
+
+function recordDone(){
+  const log=loadLog();
+  log.unshift({d:new Date().toISOString(), part:sel.part, time:sel.time, intensity:sel.intensity});
+  saveLog(log);
+  const inten=INTENSITIES.find(i=>i.key===sel.intensity);
+  document.getElementById("doneMsg").textContent =
+    `${sel.part}・${sel.time}分・${inten.label} を記録しました。今日も体をいたわれましたね。`;
+  goStep(5);
+}
+
+function renderHistory(){
+  const log=loadLog();
+  const now=new Date();
+  const thisMonth=log.filter(e=>{
+    const d=new Date(e.d);
+    return d.getFullYear()===now.getFullYear()&&d.getMonth()===now.getMonth();
+  }).length;
+  document.getElementById("statMonth").textContent=thisMonth;
+  document.getElementById("statTotal").textContent=log.length;
+  // streak
+  const days=[...new Set(log.map(e=>new Date(e.d).toDateString()))];
+  let streak=0, cur=new Date();
+  while(days.includes(cur.toDateString())){ streak++; cur.setDate(cur.getDate()-1); }
+  document.getElementById("statStreak").textContent=streak;
+
+  const list=document.getElementById("logList");
+  if(log.length===0){
+    list.innerHTML=`<div class="empty">まだ記録がありません。<br>運動が終わったら「できた!」ボタンで記録しましょう 🌱</div>`;
+    return;
+  }
+  list.innerHTML = log.map((e,i)=>{
+    const d=new Date(e.d);
+    const inten=INTENSITIES.find(x=>x.key===e.intensity);
+    return `<div class="log">
+      <div class="date">${d.getMonth()+1}/${d.getDate()} ${["日","月","火","水","木","金","土"][d.getDay()]}<br>${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}</div>
+      <div class="what">${inten.icon} ${e.part} <small>${e.time}分・${inten.label}</small></div>
+      <button class="del" onclick="delLog(${i})">✕</button>
+    </div>`;
+  }).join("");
+}
+
+function delLog(i){
+  if(!confirm("この記録を削除しますか?")) return;
+  const log=loadLog(); log.splice(i,1); saveLog(log); renderHistory();
+}
+
+/* ---------- tabs ---------- */
+function switchTab(t){
+  document.getElementById("tab-main").style.display = t==="main"?"block":"none";
+  document.getElementById("tab-history").style.display = t==="history"?"block":"none";
+  document.getElementById("navMain").classList.toggle("on",t==="main");
+  document.getElementById("navHistory").classList.toggle("on",t==="history");
+  if(t==="history") renderHistory();
+  window.scrollTo(0,0);
+}
+
+renderChoices();
+
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("./sw.js").catch(()=>{});
+}
+</script>
+</body>
+</html>
